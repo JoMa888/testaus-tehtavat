@@ -1,63 +1,71 @@
-// Funktio joka järjestää ehdokkaat
-function jarjestaEhdokkaat(lista) {
+const test = require("node:test");
+const assert = require("node:assert/strict");
 
- 
-  let uusi = lista.map(e => ({ ...e, arvottu: false }));
+function checkPassword(password) {
+  return (
+    password.length >= 10 &&
+    /[a-z]/.test(password) &&
+    /[A-Z]/.test(password) &&
+    /\d/.test(password) &&
+    /[^A-Za-z0-9]/.test(password)
+  );
+}
 
-  
-  for (let i = 0; i < uusi.length; i++) {
-    for (let j = i + 1; j < uusi.length; j++) {
+function jarjestaEhdokkaat(lista, randomFn = Math.random) {
+  const tulos = [...lista].sort((a, b) => b.aanet - a.aanet).map((e) => ({ ...e }));
 
-      
-      if (uusi[j].aanet > uusi[i].aanet) {
-        let temp = uusi[i];
-        uusi[i] = uusi[j];
-        uusi[j] = temp;
-      }
-
-      // jos sama äänimäärä → arvotaan järjestys
-      else if (uusi[j].aanet === uusi[i].aanet) {
-        uusi[i].arvottu = true;
-        uusi[j].arvottu = true;
-
-        // 50% todennäköisyys vaihtaa paikkaa
-        if (Math.random() < 0.5) {
-          let temp = uusi[i];
-          uusi[i] = uusi[j];
-          uusi[j] = temp;
-        }
-      }
+  for (let i = 0; i < tulos.length - 1; i++) {
+    if (tulos[i].aanet === tulos[i + 1].aanet) {
+      tulos[i].arvottu = true;
+      tulos[i + 1].arvottu = true;
+      if (randomFn() < 0.5) [tulos[i], tulos[i + 1]] = [tulos[i + 1], tulos[i]];
     }
   }
 
-  return uusi; // palautetaan valmis lista
+  return tulos;
 }
 
+test("salasana hyväksytään kun kaikki ehdot täyttyvät", () => {
+  assert.equal(checkPassword("Salasana1!"), true);
+});
 
-// ------------------- TESTIT -------------------
+test("salasana hylätään jos jokin ehto puuttuu", () => {
+  assert.equal(checkPassword("Sana1!Aa"), false);
+  assert.equal(checkPassword("pelkkapieni1!"), false);
+  assert.equal(checkPassword("PELKKAISO1!"), false);
+  assert.equal(checkPassword("EiNumeroita!"), false);
+  assert.equal(checkPassword("EiErikoista1"), false);
+});
 
-let t1 = jarjestaEhdokkaat([
-  { nimi: "A", aanet: 1 },
-  { nimi: "B", aanet: 5 }
-]);
-console.log("Testi 1:", t1[0].nimi === "B"); 
+test("enemmän ääniä saanut tulee ensin", () => {
+  const tulos = jarjestaEhdokkaat([
+    { nimi: "A", aanet: 5 },
+    { nimi: "B", aanet: 2 },
+    { nimi: "C", aanet: 1 },
+  ]);
 
-let t2 = jarjestaEhdokkaat([
-  { nimi: "A", aanet: 3 },
-  { nimi: "B", aanet: 3 }
-]);
-console.log("Testi 2:", t2[0].arvottu && t2[1].arvottu); 
+  assert.equal(tulos[0].nimi, "A");
+  assert.equal(tulos.every((e) => !e.arvottu), true);
+});
 
+test("tasatulos arvotaan ja merkitään arvotuksi", () => {
+  const eka = jarjestaEhdokkaat(
+    [
+      { numero: 103, nimi: "Sari Virtanen", aanet: 2 },
+      { numero: 104, nimi: "Jukka Jokinen", aanet: 2 },
+    ],
+    () => 0
+  );
 
+  const toka = jarjestaEhdokkaat(
+    [
+      { numero: 103, nimi: "Sari Virtanen", aanet: 2 },
+      { numero: 104, nimi: "Jukka Jokinen", aanet: 2 },
+    ],
+    () => 0.9
+  );
 
-let t3a = jarjestaEhdokkaat([
-  { nimi: "A", aanet: 2 },
-  { nimi: "B", aanet: 2 }
-]);
-
-let t3b = jarjestaEhdokkaat([
-  { nimi: "A", aanet: 2 },
-  { nimi: "B", aanet: 2 }
-]);
-
-console.log("Testi 3:", t3a[0].nimi !== t3b[0].nimi || true);
+  assert.equal(eka[0].arvottu, true);
+  assert.equal(eka[1].arvottu, true);
+  assert.notEqual(eka[0].nimi, toka[0].nimi);
+});
